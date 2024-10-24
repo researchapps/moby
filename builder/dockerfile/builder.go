@@ -281,7 +281,14 @@ func (b *Builder) dispatchDockerfileWithCancellation(ctx context.Context, parseR
 		}
 		dispatchRequest.state.updateRunConfig()
 		fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(dispatchRequest.state.imageID))
+
+		// Flag to indicate time to stop at particular command
+		// If the build fails, we stop, but pretend it did not.
+		stopAtCommand := false
 		for _, cmd := range stage.Commands {
+			if stopAtCommand {
+				break
+			}
 			select {
 			case <-ctx.Done():
 				log.G(ctx).Debug("Builder: build cancelled!")
@@ -294,7 +301,19 @@ func (b *Builder) dispatchDockerfileWithCancellation(ctx context.Context, parseR
 
 			currentCommandIndex = printCommand(b.Stdout, currentCommandIndex, totalCommands, cmd)
 
-			if err := dispatch(ctx, dispatchRequest, cmd); err != nil {
+			// This is where we take a layer command, and run it!
+			// So if we want to cheat and fail and keep going, try it here?
+			err := dispatch(ctx, dispatchRequest, cmd)
+
+			if err != nil {
+
+				// Stop early if we have an interactive error
+				_, ok := err.(*InteractiveError)
+				if ok {
+					fmt.Fprintf(b.Stdout, " Error with ---> %s\n", cmd)
+					stopAtCommand = true
+					break
+				}
 				return nil, err
 			}
 			dispatchRequest.state.updateRunConfig()

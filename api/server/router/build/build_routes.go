@@ -38,6 +38,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	options := &types.ImageBuildOptions{
 		Version:        types.BuilderV1, // Builder V1 is the default, but can be overridden
 		Dockerfile:     r.FormValue("dockerfile"),
+		Interactive:    httputils.BoolValue(r, "interactive"),
 		SuppressOutput: httputils.BoolValue(r, "q"),
 		NoCache:        httputils.BoolValue(r, "nocache"),
 		ForceRemove:    httputils.BoolValue(r, "forcerm"),
