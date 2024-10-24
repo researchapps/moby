@@ -76,6 +76,11 @@ func (cli *Client) imageBuildOptionsToQuery(ctx context.Context, options types.I
 		query.Set("forcerm", "1")
 	}
 
+	// Interactive debug build (don't fail but return early)
+	if options.Interactive {
+		query.Set("interactive", "1")
+	}
+
 	if options.PullParent {
 		query.Set("pull", "1")
 	}

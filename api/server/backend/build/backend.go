@@ -59,18 +59,19 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 		return "", err
 	}
 
+	// buildkit pings another grpc, so I am disabling for now
 	var build *builder.Result
-	if useBuildKit {
+	/*if useBuildKit {
 		build, err = b.buildkit.Build(ctx, config)
 		if err != nil {
 			return "", err
 		}
-	} else {
-		build, err = b.builder.Build(ctx, config)
-		if err != nil {
-			return "", err
-		}
+	} else {*/
+	build, err = b.builder.Build(ctx, config)
+	if err != nil {
+		return "", err
 	}
+	//	}
 
 	if build == nil {
 		return "", nil

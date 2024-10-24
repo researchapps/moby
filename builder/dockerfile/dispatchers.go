@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/strslice"
@@ -30,6 +31,14 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
+
+// Custom error to indicate build errored, but in interactive mode
+// and should continue with next layers
+type InteractiveError struct {
+	msg string
+}
+
+func (e *InteractiveError) Error() string { return e.msg }
 
 // ENV foo bar
 //
@@ -375,21 +384,41 @@ func dispatchRun(ctx context.Context, d dispatchRequest, c *instructions.RunComm
 		return err
 	}
 
-	if err := d.builder.containerManager.Run(ctx, cID, d.builder.Stdout, d.builder.Stderr); err != nil {
-		if err, ok := err.(*statusCodeError); ok {
-			// TODO: change error type, because jsonmessage.JSONError assumes HTTP
-			msg := fmt.Sprintf(
-				"The command '%s' returned a non-zero code: %d",
-				strings.Join(runConfig.Cmd, " "), err.StatusCode())
-			if err.Error() != "" {
-				msg = fmt.Sprintf("%s: %s", msg, err.Error())
+	err = d.builder.containerManager.Run(ctx, cID, d.builder.Stdout, d.builder.Stderr)
+
+	// If the build is interactive, we allow it to continue and commit
+	if err != nil {
+
+		// We will still return an error, but a custom type that indicates to the
+		// caller we should not proceed to the next layer.
+		if d.builder.options.Interactive {
+			log.G(ctx).Infof("[BUILDER] Error with: %s, interactive and continuing", runConfig.Cmd)
+
+			// Commit and create a new interactive error to return
+			if d.state.operatingSystem == "windows" {
+				runConfigForCacheProbe.ArgsEscaped = stateRunConfig.ArgsEscaped
 			}
-			return &jsonmessage.JSONError{
-				Message: msg,
-				Code:    err.StatusCode(),
+			err := d.builder.commitContainer(ctx, d.state, cID, runConfigForCacheProbe)
+			if err != nil {
+				return err
 			}
+			return &InteractiveError{msg: fmt.Sprintf("Error with %s, continuing", runConfig.Cmd)}
+		} else {
+			if err, ok := err.(*statusCodeError); ok {
+				// TODO: change error type, because jsonmessage.JSONError assumes HTTP
+				msg := fmt.Sprintf(
+					"The command '%s' returned a non-zero code: %d",
+					strings.Join(runConfig.Cmd, " "), err.StatusCode())
+				if err.Error() != "" {
+					msg = fmt.Sprintf("%s: %s", msg, err.Error())
+				}
+				return &jsonmessage.JSONError{
+					Message: msg,
+					Code:    err.StatusCode(),
+				}
+			}
+			return err
 		}
-		return err
 	}
 
 	// Don't persist the argsEscaped value in the committed image. Use the original

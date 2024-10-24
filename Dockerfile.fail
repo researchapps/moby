@@ -1,0 +1,2 @@
+FROM ubuntu
+RUN touch /opt/i-should-not-exist && false && not-a-command

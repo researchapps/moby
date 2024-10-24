@@ -61,19 +61,22 @@ type ImageBuildOptions struct {
 	Remove         bool
 	ForceRemove    bool
 	PullParent     bool
-	Isolation      container.Isolation
-	CPUSetCPUs     string
-	CPUSetMems     string
-	CPUShares      int64
-	CPUQuota       int64
-	CPUPeriod      int64
-	Memory         int64
-	MemorySwap     int64
-	CgroupParent   string
-	NetworkMode    string
-	ShmSize        int64
-	Dockerfile     string
-	Ulimits        []*container.Ulimit
+
+	// Enable interactive debug build
+	Interactive  bool
+	Isolation    container.Isolation
+	CPUSetCPUs   string
+	CPUSetMems   string
+	CPUShares    int64
+	CPUQuota     int64
+	CPUPeriod    int64
+	Memory       int64
+	MemorySwap   int64
+	CgroupParent string
+	NetworkMode  string
+	ShmSize      int64
+	Dockerfile   string
+	Ulimits      []*container.Ulimit
 	// BuildArgs needs to be a *string instead of just a string so that
 	// we can tell the difference between "" (empty string) and no value
 	// at all (nil). See the parsing of buildArgs in

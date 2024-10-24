@@ -188,6 +188,11 @@ bundles:
 .PHONY: clean
 clean: clean-cache
 
+.PHONY: interactive
+interactive: # An interactive build option that will not fail on error of a layer
+	mkdir -p ./bin
+	go build -o ./bin/docker-build main.go
+
 .PHONY: clean-cache
 clean-cache: ## remove the docker volumes that are used for caching in the dev-container
 	docker volume rm -f docker-dev-cache docker-mod-cache
